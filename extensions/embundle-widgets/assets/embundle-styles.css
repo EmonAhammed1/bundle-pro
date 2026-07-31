@@ -1,0 +1,50 @@
+/* EmBundle PRO - Storefront Theme Extension Stylesheet */
+.embundle-card {
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.embundle-badge {
+  display: inline-block;
+  background: #059669;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.embundle-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 4px 0;
+}
+
+.embundle-btn {
+  width: 100%;
+  background: #10b981;
+  color: #020617;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.2s ease;
+}
+
+.embundle-btn:hover {
+  background: #34d399;
+  transform: translateY(-1px);
+}

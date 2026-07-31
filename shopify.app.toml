@@ -1,0 +1,27 @@
+# Official Shopify App CLI Configuration for EmBundle PRO
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "d05f746d959269be8308b07258f782be"
+name = "EmBundle PRO"
+handle = "embundle-pro"
+application_url = "http://localhost:3000"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+scopes = "write_products,read_products,write_discounts,read_discounts,write_orders,read_orders,write_themes,read_themes"
+
+[auth]
+redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/auth/shopify/callback",
+  "http://localhost:3000/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2026-07"
+
+[pos]
+embedded = false

@@ -1,0 +1,41 @@
+{% comment %}
+  EmBundle PRO - Official Theme App Extension Block
+  Auto-rendered on Shopify Product Pages
+{% endcomment %}
+
+<div 
+  id="embundle-app-root" 
+  data-product-id="{{ product.id }}"
+  data-product-price="{{ product.price }}"
+  data-product-title="{{ product.title | escape }}"
+>
+  <div className="embundle-widget-loader">
+    <!-- EmBundle PRO Interactive React Engine Mount -->
+    <div id="embundle-container"></div>
+  </div>
+</div>
+
+<script>
+  window.EmBundleConfig = {
+    shop: "{{ shop.permanent_domain }}",
+    productId: "{{ product.id }}",
+    currency: "{{ shop.currency }}"
+  };
+</script>
+
+{% schema %}
+{
+  "name": "EmBundle PRO Widgets",
+  "target": "section",
+  "stylesheet": "embundle-styles.css",
+  "javascript": "embundle-core.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Bundle Heading",
+      "default": "Special Bundle Offers"
+    }
+  ]
+}
+{% endschema %}

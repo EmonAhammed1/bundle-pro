@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  embundle-pro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: embundle-pro-app
+    restart: always
+    ports:
+      - "80:80"
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
