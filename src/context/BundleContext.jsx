@@ -11,6 +11,43 @@ export const BundleProvider = ({ children }) => {
   const [activeTab, setActiveTab] = useState('welcome'); // 'welcome' | 'campaigns' | 'boosters' | 'analytics' | 'customizer' | 'exporter' | 'simulator'
   const [activeWidgetType, setActiveWidgetType] = useState('BUY_2_GET_10_BUY_3_GET_20');
   const [selectedProduct, setSelectedProduct] = useState(MOCK_PRODUCTS[0]);
+
+  // Sync URL Path, Query, and Hash with activeTab state
+  useEffect(() => {
+    const handleUrlSync = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      const search = window.location.search.toLowerCase();
+
+      if (path.includes('campaign') || hash.includes('campaign') || search.includes('tab=campaign')) {
+        setActiveTab('campaigns');
+      } else if (path.includes('booster') || hash.includes('booster') || search.includes('tab=booster')) {
+        setActiveTab('campaigns');
+      } else if (path.includes('customiz') || hash.includes('customiz') || search.includes('tab=customiz')) {
+        setActiveTab('customizer');
+      } else if (path.includes('analytic') || hash.includes('analytic') || search.includes('tab=analytic')) {
+        setActiveTab('analytics');
+      } else if (path.includes('export') || path.includes('setting') || hash.includes('setting') || search.includes('tab=setting')) {
+        setActiveTab('exporter');
+      } else if (path.includes('simulat') || hash.includes('simulat')) {
+        setActiveTab('simulator');
+      } else if (path === '/' || path.includes('welcome') || search.includes('tab=welcome')) {
+        setActiveTab('welcome');
+      }
+    };
+
+    handleUrlSync();
+
+    window.addEventListener('popstate', handleUrlSync);
+    window.addEventListener('hashchange', handleUrlSync);
+    const interval = setInterval(handleUrlSync, 300);
+
+    return () => {
+      window.removeEventListener('popstate', handleUrlSync);
+      window.removeEventListener('hashchange', handleUrlSync);
+      clearInterval(interval);
+    };
+  }, []);
   
   // Customizer styling settings
   const [widgetStyle, setWidgetStyle] = useState({

@@ -51,14 +51,14 @@ export const AdminLayout = ({ children }) => {
       <MerchantInstallerModal isOpen={isInstallerOpen} onClose={() => setIsInstallerOpen(false)} />
       <BundleCreatorModal isOpen={isCreateBundleOpen} onClose={() => setIsCreateBundleOpen(false)} />
 
-      {/* Shopify Native App Bridge Navigation Menu for Shopify Left Sidebar */}
+      {/* Shopify Native App Bridge Navigation Menu for Shopify Left Sidebar Panel */}
       <ui-nav-menu>
-        <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('welcome'); }} rel="home">Welcome</a>
-        <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('campaigns'); }}>Bundles</a>
-        <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('boosters'); }}>Boosters</a>
-        <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('customizer'); }}>Customization</a>
-        <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); }}>Analytics</a>
-        <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('exporter'); }}>Settings</a>
+        <a href="/" rel="home">Welcome</a>
+        <a href="/campaigns">Bundles</a>
+        <a href="/boosters">Boosters</a>
+        <a href="/customizer">Customization</a>
+        <a href="/analytics">Analytics</a>
+        <a href="/exporter">Settings</a>
       </ui-nav-menu>
 
       {/* Top Header Bar */}
