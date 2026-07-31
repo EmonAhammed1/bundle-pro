@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Store, ArrowRight, ShieldCheck, X } from 'lucide-react';
+import { Store, ArrowRight, ShieldCheck, ExternalLink, X } from 'lucide-react';
 
 export const MerchantInstallerModal = ({ isOpen, onClose }) => {
   const [storeDomain, setStoreDomain] = useState('');
@@ -9,7 +9,6 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     if (!storeDomain) return;
 
-    // Clean up domain input (e.g., liquid-hub.myshopify.com or liquid-hub)
     let cleanDomain = storeDomain
       .trim()
       .toLowerCase()
@@ -20,19 +19,19 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
       cleanDomain = `${cleanDomain}.myshopify.com`;
     }
 
-    const storeHandle = cleanDomain.replace('.myshopify.com', '');
-
-    // Determine redirect URI matched with Whitelisted URLs
-    const redirectUri = window.location.origin.includes('localhost')
-      ? `${window.location.origin}/auth/callback`
-      : 'https://bundle.emonahammed.shop/auth/callback';
-
+    const redirectUri = 'https://bundle.emonahammed.shop/auth/callback';
     const scopes = 'write_products,read_products,write_discounts,read_discounts,write_orders,read_orders,write_themes,read_themes';
 
     // Official Standard Shopify OAuth Authorization Install URL
-    const installUrl = `https://${storeHandle}.myshopify.com/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const installUrl = `https://${cleanDomain}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
     window.open(installUrl, '_blank');
+  };
+
+  const handleDirectPartnerInstall = () => {
+    // Official Shopify Partner Direct Install URL
+    const directUrl = `https://admin.shopify.com/oauth/install?client_id=${clientId}`;
+    window.open(directUrl, '_blank');
   };
 
   if (!isOpen) return null;
@@ -84,6 +83,17 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
             <ArrowRight className="h-4 w-4" />
           </button>
         </form>
+
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={handleDirectPartnerInstall}
+            className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 underline flex items-center justify-center space-x-1 mx-auto"
+          >
+            <span>Or click here to install via Shopify Partner Link</span>
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
 
         <div className="pt-3 border-t border-slate-800 flex items-center justify-center space-x-2 text-[11px] text-slate-400">
           <ShieldCheck className="h-4 w-4 text-emerald-400" />

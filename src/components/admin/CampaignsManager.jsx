@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { useBundle } from '../../context/BundleContext';
 import { BUNDLE_TYPES } from '../../types/bundleTypes';
+import { BundleCreatorModal } from './BundleCreatorModal';
 import { 
   Plus, 
   Search, 
   Filter, 
   Layers, 
   Trash2, 
-  Eye, 
   Sparkles, 
-  X,
-  CheckCircle,
+  CheckCircle2,
   ToggleLeft,
   ToggleRight,
-  AlertCircle
+  Tag,
+  Copy,
+  ExternalLink,
+  ShoppingBag,
+  TrendingUp
 } from 'lucide-react';
 
 export const CampaignsManager = () => {
@@ -29,294 +32,235 @@ export const CampaignsManager = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // New Campaign Form State
-  const [newCampaignType, setNewCampaignType] = useState('BUY_2_GET_10_BUY_3_GET_20');
-  const [newCampaignTitle, setNewCampaignTitle] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(15);
-  const [spendThreshold, setSpendThreshold] = useState(100);
 
   const filteredCampaigns = campaigns.filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'ALL' || c.type === filterType;
-    return matchesSearch && matchesType;
+    const matchesStatus = filterStatus === 'ALL' || c.status === filterStatus;
+    return matchesSearch && matchesType && matchesStatus;
   });
 
-  const handleCreateCampaign = (e) => {
-    e.preventDefault();
-    const bt = BUNDLE_TYPES[newCampaignType];
-    
-    let campaignData = {
-      type: newCampaignType,
-      title: newCampaignTitle || `${bt.name} Offer`,
-      status: 'ACTIVE'
+  const handleDuplicate = (camp) => {
+    const duplicateData = {
+      ...camp,
+      id: `camp_${Date.now()}`,
+      title: `${camp.title} (Copy)`,
+      status: 'INACTIVE',
+      createdAt: new Date().toISOString().split('T')[0]
     };
+    addCampaign(duplicateData);
+  };
 
-    if (newCampaignType === 'BUY_2_GET_10_BUY_3_GET_20') {
-      campaignData.tiers = [
-        { quantity: 2, discountPercent: 10, label: 'Buy 2 Get 10% OFF' },
-        { quantity: 3, discountPercent: 20, label: 'Buy 3 Get 20% OFF' }
-      ];
-      campaignData.targetProductIds = [products[0]?.id || 'prod_1'];
-    } else if (newCampaignType === 'FREQUENTLY_BOUGHT_TOGETHER') {
-      campaignData.mainProductId = products[0]?.id || 'prod_1';
-      campaignData.bundleItemIds = [products[0]?.id || 'prod_1', products[1]?.id || 'prod_2', products[2]?.id || 'prod_3'];
-      campaignData.discountPercent = Number(discountPercent);
-    } else if (newCampaignType === 'BUY_MORE_SAVE_MORE') {
-      campaignData.tiers = [
-        { spendAmount: 50, discountPercent: 10, reward: '10% OFF Order' },
-        { spendAmount: Number(spendThreshold), discountPercent: Number(discountPercent), reward: `${discountPercent}% OFF Order` }
-      ];
-    } else {
-      campaignData.discountPercent = Number(discountPercent);
-    }
-
-    addCampaign(campaignData);
-    setIsModalOpen(false);
-    setNewCampaignTitle('');
+  const handleTestOnStorefront = (typeKey) => {
+    setActiveWidgetType(typeKey);
+    setActiveTab('simulator');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
+      <BundleCreatorModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       
-      {/* Top Header & Action Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Header Banner & Stats */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-6 rounded-2xl shadow-xl">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-            <Layers className="h-5 w-5 text-emerald-400" />
-            <span>Bundle Campaign Manager</span>
-          </h2>
-          <p className="text-xs text-slate-400">Configure, activate, and manage your 10 bundle campaign rules</p>
+          <div className="flex items-center space-x-2">
+            <Layers className="h-6 w-6 text-emerald-400" />
+            <h2 className="text-xl font-extrabold text-white">Shopify Bundle Engine</h2>
+            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full">
+              {campaigns.filter(c => c.status === 'ACTIVE').length} Active Bundles
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Create, manage, and toggle active/inactive bundle rules on specific products.
+          </p>
         </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-emerald-500/20 transition transform hover:-translate-y-0.5"
+          className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-3 rounded-xl font-black text-xs shadow-lg shadow-emerald-500/20 transition transform hover:-translate-y-0.5"
         >
-          <Plus className="h-4 w-4" />
-          <span>Create New Campaign</span>
+          <Plus className="h-4 w-4 stroke-[3]" />
+          <span>Create New Bundle</span>
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl flex flex-col md:flex-row gap-4 justify-between items-center">
+      {/* Filter Bar */}
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Search */}
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
           <input
             type="text"
-            placeholder="Search campaigns..."
+            placeholder="Search bundles by title..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
           />
         </div>
 
-        {/* Category Filter */}
-        <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto">
-          <Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
+        {/* Filters */}
+        <div className="flex items-center space-x-3 w-full md:w-auto">
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500 font-semibold"
+          >
+            <option value="ALL">All Status</option>
+            <option value="ACTIVE">🟢 Active Only</option>
+            <option value="INACTIVE">⚪ Inactive Only</option>
+          </select>
+
+          {/* Type Filter */}
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500 font-semibold"
           >
-            <option value="ALL">All 10 Bundle Types</option>
-            {Object.values(BUNDLE_TYPES).map(bt => (
-              <option key={bt.id} value={bt.id}>{bt.name}</option>
+            <option value="ALL">All Bundle Types (10)</option>
+            {Object.entries(BUNDLE_TYPES).map(([typeKey, bundle]) => (
+              <option key={typeKey} value={typeKey}>{bundle.name}</option>
             ))}
           </select>
         </div>
 
       </div>
 
-      {/* Campaign Cards List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredCampaigns.length === 0 ? (
-          <div className="col-span-full bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-12 text-center">
-            <AlertCircle className="h-10 w-10 text-slate-500 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-300">No campaigns found matching your filter</p>
-            <p className="text-xs text-slate-500 mt-1">Try clearing your search query or create a new bundle campaign.</p>
-          </div>
-        ) : (
-          filteredCampaigns.map((c) => {
-            const bt = BUNDLE_TYPES[c.type] || { name: c.type, badge: 'Bundle', color: 'from-emerald-500 to-teal-600' };
-            const isActive = c.status === 'ACTIVE';
-
-            return (
-              <div 
-                key={c.id} 
-                className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between transition"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase bg-gradient-to-r ${bt.color} text-white`}>
-                        {bt.name}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">{bt.badge}</span>
-                    </div>
-
-                    <button
-                      onClick={() => toggleCampaignStatus(c.id)}
-                      className={`flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
-                        isActive 
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' 
-                          : 'bg-slate-800 text-slate-400 border border-slate-700'
-                      }`}
-                    >
-                      {isActive ? <ToggleRight className="h-4 w-4 text-emerald-400" /> : <ToggleLeft className="h-4 w-4 text-slate-500" />}
-                      <span>{isActive ? 'ACTIVE' : 'DISABLED'}</span>
-                    </button>
-                  </div>
-
-                  <h3 className="font-bold text-base text-white">{c.title}</h3>
-
-                  <div className="mt-3 text-xs text-slate-400 space-y-1 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-                    {c.tiers && (
-                      <div className="flex flex-wrap gap-1">
-                        {c.tiers.map((t, idx) => (
-                          <span key={idx} className="bg-slate-800 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-mono">
-                            {t.label || `${t.quantity || t.minUnits || `$${t.spendAmount}`} ➔ ${t.discountPercent}% OFF`}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {c.discountPercent && (
-                      <div className="font-medium text-emerald-400">
-                        Bundle Discount: {c.discountPercent}% OFF
-                      </div>
-                    )}
-                    {c.fixedBundlePrice && (
-                      <div className="font-medium text-emerald-400">
-                        Special Fixed Price: ${c.fixedBundlePrice.toFixed(2)} (Valued at ${c.originalValue.toFixed(2)})
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer Card Actions */}
-                <div className="mt-5 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <button
-                    onClick={() => {
-                      setActiveWidgetType(c.type);
-                      setActiveTab('simulator');
-                    }}
-                    className="flex items-center space-x-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    <span>Test on Storefront</span>
-                  </button>
-
-                  <button
-                    onClick={() => deleteCampaign(c.id)}
-                    className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition"
-                    title="Delete Campaign"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Modal: Create Campaign Wizard */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl space-y-5 animate-scaleUp">
+      {/* Polaris Native Bundles Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
             
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-lg text-white flex items-center space-x-2">
-                <Sparkles className="h-5 w-5 text-emerald-400" />
-                <span>Create New Bundle Campaign</span>
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            {/* Table Header */}
+            <thead className="bg-slate-950/80 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
+              <tr>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Bundle Name</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Discount Rule</th>
+                <th className="px-6 py-4">Target Products</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
 
-            <form onSubmit={handleCreateCampaign} className="space-y-4">
-              
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Select Bundle Type (All 10 Supported)</label>
-                <select
-                  value={newCampaignType}
-                  onChange={(e) => setNewCampaignType(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                >
-                  {Object.values(BUNDLE_TYPES).map(bt => (
-                    <option key={bt.id} value={bt.id}>{bt.name} — {bt.category}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Table Body */}
+            <tbody className="divide-y divide-slate-800/60">
+              {filteredCampaigns.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                    <Layers className="h-10 w-10 text-slate-600 mx-auto mb-2 opacity-50" />
+                    <p className="font-bold text-sm text-slate-400">No Bundles Found</p>
+                    <p className="text-xs mt-1">Click "Create New Bundle" to start adding custom product bundle rules.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredCampaigns.map((camp) => {
+                  const bundleDef = BUNDLE_TYPES[camp.type] || BUNDLE_TYPES.BUY_2_GET_10_BUY_3_GET_20;
+                  const isActive = camp.status === 'ACTIVE';
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Campaign Name / Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Summer Special Buy 2 Get 10% Off"
-                  value={newCampaignTitle}
-                  onChange={(e) => setNewCampaignTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  required
-                />
-              </div>
+                  return (
+                    <tr key={camp.id} className="hover:bg-slate-800/40 transition group">
+                      
+                      {/* Active / Inactive Toggle Switch */}
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => toggleCampaignStatus(camp.id)}
+                          className={`flex items-center space-x-2 px-3 py-1.5 rounded-full font-extrabold text-[11px] transition ${
+                            isActive
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          {isActive ? (
+                            <>
+                              <ToggleRight className="h-4 w-4 text-emerald-400" />
+                              <span>Active</span>
+                            </>
+                          ) : (
+                            <>
+                              <ToggleLeft className="h-4 w-4 text-slate-500" />
+                              <span>Inactive</span>
+                            </>
+                          )}
+                        </button>
+                      </td>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Default Discount %</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={discountPercent}
-                    onChange={(e) => setDiscountPercent(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
+                      {/* Title & Icon */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="text-xl p-2 rounded-xl bg-slate-950 border border-slate-800">
+                            {bundleDef.icon}
+                          </div>
+                          <div>
+                            <span className="font-bold text-sm text-white group-hover:text-emerald-400 transition">
+                              {camp.title}
+                            </span>
+                            <div className="text-[11px] text-slate-400">Created: {camp.createdAt || 'Today'}</div>
+                          </div>
+                        </div>
+                      </td>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Spend Threshold ($)</label>
-                  <input
-                    type="number"
-                    min="10"
-                    max="1000"
-                    value={spendThreshold}
-                    onChange={(e) => setSpendThreshold(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
+                      {/* Type Badge */}
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-950 border border-slate-800 text-slate-300">
+                          {bundleDef.name}
+                        </span>
+                      </td>
 
-              <div className="pt-4 flex justify-end space-x-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20"
-                >
-                  Publish Campaign
-                </button>
-              </div>
+                      {/* Discount Rule */}
+                      <td className="px-6 py-4 font-mono font-bold text-emerald-400">
+                        {camp.discountPercent ? `${camp.discountPercent}% OFF` : 
+                         camp.tiers ? `${camp.tiers.length} Tier Rules` : 'Dynamic Discount'}
+                      </td>
 
-            </form>
+                      {/* Target Products */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-1.5 text-xs text-slate-300">
+                          <Tag className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>{camp.targetProductIds ? `${camp.targetProductIds.length} Products` : 'All Products'}</span>
+                        </div>
+                      </td>
 
-          </div>
+                      {/* Quick Actions */}
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleTestOnStorefront(camp.type)}
+                            title="Preview on Storefront"
+                            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/20 transition"
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDuplicate(camp)}
+                            title="Duplicate Bundle"
+                            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            onClick={() => deleteCampaign(camp.id)}
+                            title="Delete Bundle"
+                            className="p-2 rounded-lg bg-slate-800 hover:bg-rose-900/40 text-rose-400 border border-rose-500/20 transition"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
-
+      </div>
     </div>
   );
 };
