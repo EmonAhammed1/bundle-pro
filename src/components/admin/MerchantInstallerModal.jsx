@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Store, ArrowRight, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Store, ArrowRight, ShieldCheck, X } from 'lucide-react';
 
 export const MerchantInstallerModal = ({ isOpen, onClose }) => {
   const [storeDomain, setStoreDomain] = useState('');
@@ -9,9 +9,10 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     if (!storeDomain) return;
 
-    // Clean up domain input (e.g., my-store.myshopify.com)
+    // Clean up domain input (e.g., liquid-hub.myshopify.com or liquid-hub)
     let cleanDomain = storeDomain
       .trim()
+      .toLowerCase()
       .replace(/^https?:\/\//, '')
       .replace(/\/.*$/, '');
 
@@ -21,8 +22,15 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
 
     const storeHandle = cleanDomain.replace('.myshopify.com', '');
 
-    // Official Shopify OAuth Authorization Install URL
-    const installUrl = `https://admin.shopify.com/store/${storeHandle}/oauth/authorize?client_id=${clientId}&scope=write_products,read_products,write_discounts,read_discounts,write_orders,read_orders,write_themes,read_themes&redirect_uri=${encodeURIComponent(window.location.origin + '/auth/callback')}`;
+    // Determine redirect URI matched with Whitelisted URLs
+    const redirectUri = window.location.origin.includes('localhost')
+      ? `${window.location.origin}/auth/callback`
+      : 'https://bundle.emonahammed.shop/auth/callback';
+
+    const scopes = 'write_products,read_products,write_discounts,read_discounts,write_orders,read_orders,write_themes,read_themes';
+
+    // Official Standard Shopify OAuth Authorization Install URL
+    const installUrl = `https://${storeHandle}.myshopify.com/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
     window.open(installUrl, '_blank');
   };
@@ -56,7 +64,7 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="e.g. my-fashion-store.myshopify.com"
+                placeholder="e.g. liquid-hub.myshopify.com"
                 value={storeDomain}
                 onChange={(e) => setStoreDomain(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-32 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"

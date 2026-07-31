@@ -4,7 +4,7 @@
 client_id = "d05f746d959269be8308b07258f782be"
 name = "EmBundle PRO"
 handle = "embundle-pro"
-application_url = "http://localhost:3000"
+application_url = "https://bundle.emonahammed.shop"
 embedded = true
 
 [build]
@@ -15,9 +15,13 @@ scopes = "write_products,read_products,write_discounts,read_discounts,write_orde
 
 [auth]
 redirect_urls = [
+  "https://bundle.emonahammed.shop/auth/callback",
+  "https://bundle.emonahammed.shop/auth/shopify/callback",
+  "https://bundle.emonahammed.shop/api/auth/callback",
+  "http://72.244.153.23:8080/auth/callback",
+  "http://72.244.153.23/auth/callback",
   "http://localhost:3000/auth/callback",
-  "http://localhost:3000/auth/shopify/callback",
-  "http://localhost:3000/api/auth/callback"
+  "http://localhost:3001/auth/callback"
 ]
 
 [webhooks]
