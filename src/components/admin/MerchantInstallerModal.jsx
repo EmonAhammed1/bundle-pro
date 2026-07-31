@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Store, ArrowRight, ShieldCheck, ExternalLink, X } from 'lucide-react';
+import { useBundle } from '../../context/BundleContext';
+import { Store, ArrowRight, ShieldCheck, ExternalLink, X, RefreshCw } from 'lucide-react';
 
 export const MerchantInstallerModal = ({ isOpen, onClose }) => {
+  const { fetchRealStoreProducts } = useBundle();
   const [storeDomain, setStoreDomain] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
   const clientId = 'd05f746d959269be8308b07258f782be';
 
-  const handleInstall = (e) => {
+  const handleInstall = async (e) => {
     e.preventDefault();
     if (!storeDomain) return;
 
@@ -19,17 +22,27 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
       cleanDomain = `${cleanDomain}.myshopify.com`;
     }
 
+    setIsSyncing(true);
+    await fetchRealStoreProducts(cleanDomain);
+    setIsSyncing(false);
+
     const redirectUri = 'https://bundle.emonahammed.shop/auth/callback';
     const scopes = 'write_products,read_products,write_discounts,read_discounts,write_orders,read_orders,write_themes,read_themes';
-
-    // Official Standard Shopify OAuth Authorization Install URL
     const installUrl = `https://${cleanDomain}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
     window.open(installUrl, '_blank');
+    onClose();
+  };
+
+  const handleFetchOnly = async () => {
+    if (!storeDomain) return;
+    setIsSyncing(true);
+    await fetchRealStoreProducts(storeDomain);
+    setIsSyncing(false);
+    onClose();
   };
 
   const handleDirectPartnerInstall = () => {
-    // Official Shopify Partner Direct Install URL
     const directUrl = `https://admin.shopify.com/oauth/install?client_id=${clientId}`;
     window.open(directUrl, '_blank');
   };
@@ -51,9 +64,9 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
           <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 mx-auto flex items-center justify-center">
             <Store className="h-6 w-6" />
           </div>
-          <h3 className="font-extrabold text-xl text-white">Install EmBundle PRO on Your Store</h3>
+          <h3 className="font-extrabold text-xl text-white">Connect Shopify Store Catalog</h3>
           <p className="text-xs text-slate-400">
-            Enter your Shopify store domain below to start the instant app installation.
+            Enter your Shopify store domain to sync your real store products automatically.
           </p>
         </div>
 
@@ -75,13 +88,26 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-3.5 rounded-xl font-black text-xs text-slate-950 bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/20 transition transform hover:-translate-y-0.5"
-          >
-            <span>Install App on Store</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleFetchOnly}
+              disabled={isSyncing}
+              className="py-3 rounded-xl font-bold text-xs text-slate-200 bg-slate-800 hover:bg-slate-700 flex items-center justify-center space-x-1.5 border border-slate-700 transition"
+            >
+              <RefreshCw className={`h-4 w-4 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>Sync Products</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSyncing}
+              className="py-3 rounded-xl font-black text-xs text-slate-950 bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center space-x-1.5 shadow-lg shadow-emerald-500/20 transition"
+            >
+              <span>Install & Sync</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </form>
 
         <div className="pt-2 text-center">
@@ -97,7 +123,7 @@ export const MerchantInstallerModal = ({ isOpen, onClose }) => {
 
         <div className="pt-3 border-t border-slate-800 flex items-center justify-center space-x-2 text-[11px] text-slate-400">
           <ShieldCheck className="h-4 w-4 text-emerald-400" />
-          <span>Official Shopify OAuth 2.0 Secure Installer</span>
+          <span>Syncs real store titles, prices, images & variants</span>
         </div>
 
       </div>

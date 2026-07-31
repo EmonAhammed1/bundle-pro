@@ -5,12 +5,97 @@ import { BUNDLE_TYPES } from '../types/bundleTypes';
 const BundleContext = createContext();
 
 export const BundleProvider = ({ children }) => {
-  const [products] = useState(MOCK_PRODUCTS);
+  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [storeDomain, setStoreDomain] = useState('');
   const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
   const [cart, setCart] = useState([]);
   const [activeTab, setActiveTab] = useState('welcome'); // 'welcome' | 'campaigns' | 'boosters' | 'analytics' | 'customizer' | 'exporter' | 'simulator'
   const [activeWidgetType, setActiveWidgetType] = useState('BUY_2_GET_10_BUY_3_GET_20');
   const [selectedProduct, setSelectedProduct] = useState(MOCK_PRODUCTS[0]);
+  
+  // Customizer styling settings
+  const [widgetStyle, setWidgetStyle] = useState({
+    primaryColor: '#059669', // Emerald
+    accentColor: '#f59e0b',  // Amber
+    borderRadius: '12px',
+    borderStyle: 'solid',
+    fontFamily: 'Inter',
+    badgeText: 'HOT DEAL',
+    calloutAnimation: true
+  });
+
+  // Simulated Analytics
+  const [analytics, setAnalytics] = useState({
+    totalRevenue: 14250.00,
+    bundleOrders: 184,
+    aovIncrease: 28.5,
+    conversionBoost: 3.4,
+    topBundleType: 'BUY_2_GET_10_BUY_3_GET_20'
+  });
+
+  // Fetch Real Shopify Store Products
+  const fetchRealStoreProducts = async (domain) => {
+    if (!domain) return;
+    setLoadingProducts(true);
+
+    try {
+      let cleanDomain = domain
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/.*$/, '');
+
+      if (!cleanDomain.includes('.')) {
+        cleanDomain = `${cleanDomain}.myshopify.com`;
+      }
+
+      setStoreDomain(cleanDomain);
+      localStorage.setItem('shopify_connected_shop', cleanDomain);
+
+      // Attempt to fetch public products.json from merchant's store
+      const response = await fetch(`https://${cleanDomain}/products.json`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.products && data.products.length > 0) {
+          const realProducts = data.products.map(p => ({
+            id: `shopify_${p.id}`,
+            title: p.title,
+            category: p.product_type || 'Store Catalog',
+            collection: p.vendor || 'Main Collection',
+            price: parseFloat(p.variants[0]?.price || '29.99'),
+            compareAtPrice: parseFloat(p.variants[0]?.compare_at_price || '39.99'),
+            image: p.images[0]?.src || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+            description: p.body_html ? p.body_html.replace(/<[^>]*>?/gm, '') : p.title,
+            variants: p.variants.map(v => ({
+              id: `v_${v.id}`,
+              title: v.title,
+              price: parseFloat(v.price),
+              inventory: v.inventory_quantity || 15
+            }))
+          }));
+
+          setProducts(realProducts);
+          setSelectedProduct(realProducts[0]);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn('Unable to fetch products.json directly, keep catalog ready:', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+    return false;
+  };
+
+  // Sync Store Domain and Fetch Real Products on Load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shopParam = urlParams.get('shop') || localStorage.getItem('shopify_connected_shop');
+    if (shopParam) {
+      fetchRealStoreProducts(shopParam);
+    }
+  }, []);
 
   // Sync URL Path, Query, and Hash with activeTab state
   useEffect(() => {
@@ -48,26 +133,6 @@ export const BundleProvider = ({ children }) => {
       clearInterval(interval);
     };
   }, []);
-  
-  // Customizer styling settings
-  const [widgetStyle, setWidgetStyle] = useState({
-    primaryColor: '#059669', // Emerald
-    accentColor: '#f59e0b',  // Amber
-    borderRadius: '12px',
-    borderStyle: 'solid',
-    fontFamily: 'Inter',
-    badgeText: 'HOT DEAL',
-    calloutAnimation: true
-  });
-
-  // Simulated Analytics
-  const [analytics, setAnalytics] = useState({
-    totalRevenue: 14250.00,
-    bundleOrders: 184,
-    aovIncrease: 28.5,
-    conversionBoost: 3.4,
-    topBundleType: 'BUY_2_GET_10_BUY_3_GET_20'
-  });
 
   // Add Item to Cart
   const addToCart = (product, quantity = 1, appliedDiscountPercent = 0, bundleInfo = null) => {
@@ -162,6 +227,10 @@ export const BundleProvider = ({ children }) => {
   return (
     <BundleContext.Provider value={{
       products,
+      setProducts,
+      loadingProducts,
+      storeDomain,
+      fetchRealStoreProducts,
       campaigns,
       cart,
       activeTab,
