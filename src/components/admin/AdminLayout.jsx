@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBundle } from '../../context/BundleContext';
 import { MerchantInstallerModal } from './MerchantInstallerModal';
 import { BundleCreatorModal } from './BundleCreatorModal';
@@ -13,9 +13,7 @@ import {
   Layers, 
   ShoppingBag,
   Download,
-  ExternalLink,
   Settings,
-  HelpCircle,
   Home,
   Rocket
 } from 'lucide-react';
@@ -24,7 +22,18 @@ export const AdminLayout = ({ children }) => {
   const { activeTab, setActiveTab, campaigns } = useBundle();
   const [isInstallerOpen, setIsInstallerOpen] = useState(false);
   const [isCreateBundleOpen, setIsCreateBundleOpen] = useState(false);
-  const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
+  const [isEmbeddedInShopify, setIsEmbeddedInShopify] = useState(false);
+
+  useEffect(() => {
+    // Check if running inside Shopify Admin iframe or URL contains shop param
+    const isIframe = window.self !== window.top;
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasShopParam = urlParams.has('shop') || urlParams.has('host');
+    
+    if (isIframe || hasShopParam) {
+      setIsEmbeddedInShopify(true);
+    }
+  }, []);
 
   const activeCount = campaigns.filter(c => c.status === 'ACTIVE').length;
 
@@ -53,8 +62,8 @@ export const AdminLayout = ({ children }) => {
             </div>
             <div className="flex items-center space-x-2">
               <h1 className="font-bold text-sm text-slate-900">EmBundle <span className="text-pink-600 font-extrabold">PRO</span></h1>
-              <span className="text-slate-400">|</span>
-              <span className="text-xs font-semibold text-slate-600">Shopify Bundle App</span>
+              <span className="text-slate-300">|</span>
+              <span className="text-xs font-semibold text-slate-500">Shopify Embedded App</span>
             </div>
           </div>
 
@@ -68,13 +77,15 @@ export const AdminLayout = ({ children }) => {
               <span>Create bundle</span>
             </button>
 
-            <button
-              onClick={() => setIsInstallerOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition shadow-sm"
-            >
-              <Download className="h-3.5 w-3.5 text-slate-500" />
-              <span>Install on Store</span>
-            </button>
+            {!isEmbeddedInShopify && (
+              <button
+                onClick={() => setIsInstallerOpen(true)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition shadow-sm"
+              >
+                <Download className="h-3.5 w-3.5 text-slate-500" />
+                <span>Install on Store</span>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab('simulator')}
@@ -96,7 +107,7 @@ export const AdminLayout = ({ children }) => {
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row">
         
         {/* Left Shopify Admin Sub-menu Sidebar */}
-        <aside className="w-full md:w-56 p-4 border-r border-slate-200 bg-white/60 space-y-4">
+        <aside className="w-full md:w-56 p-4 border-r border-slate-200 bg-white/70 space-y-4">
           <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Apps &gt; EmBundle PRO
           </div>
@@ -111,7 +122,7 @@ export const AdminLayout = ({ children }) => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
                     isActive
-                      ? 'bg-slate-200/70 text-slate-900 font-bold shadow-inner'
+                      ? 'bg-slate-200/80 text-slate-900 font-bold shadow-inner'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
