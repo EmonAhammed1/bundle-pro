@@ -34,67 +34,76 @@ export const BundleProvider = ({ children }) => {
     topBundleType: 'BUY_2_GET_10_BUY_3_GET_20'
   });
 
-  // Fetch Real Shopify Store Products
+  // Fetch Real Shopify Store Products with CORS Proxy Fallbacks
   const fetchRealStoreProducts = async (domain) => {
-    if (!domain) return;
+    if (!domain) return false;
     setLoadingProducts(true);
 
-    try {
-      let cleanDomain = domain
-        .trim()
-        .toLowerCase()
-        .replace(/^https?:\/\//, '')
-        .replace(/\/.*$/, '');
+    let cleanDomain = domain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/\/.*$/, '');
 
-      if (!cleanDomain.includes('.')) {
-        cleanDomain = `${cleanDomain}.myshopify.com`;
-      }
-
-      setStoreDomain(cleanDomain);
-      localStorage.setItem('shopify_connected_shop', cleanDomain);
-
-      // Attempt to fetch public products.json from merchant's store
-      const response = await fetch(`https://${cleanDomain}/products.json`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.products && data.products.length > 0) {
-          const realProducts = data.products.map(p => ({
-            id: `shopify_${p.id}`,
-            title: p.title,
-            category: p.product_type || 'Store Catalog',
-            collection: p.vendor || 'Main Collection',
-            price: parseFloat(p.variants[0]?.price || '29.99'),
-            compareAtPrice: parseFloat(p.variants[0]?.compare_at_price || '39.99'),
-            image: p.images[0]?.src || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
-            description: p.body_html ? p.body_html.replace(/<[^>]*>?/gm, '') : p.title,
-            variants: p.variants.map(v => ({
-              id: `v_${v.id}`,
-              title: v.title,
-              price: parseFloat(v.price),
-              inventory: v.inventory_quantity || 15
-            }))
-          }));
-
-          setProducts(realProducts);
-          setSelectedProduct(realProducts[0]);
-          return true;
-        }
-      }
-    } catch (err) {
-      console.warn('Unable to fetch products.json directly, keep catalog ready:', err);
-    } finally {
-      setLoadingProducts(false);
+    if (!cleanDomain.includes('.')) {
+      cleanDomain = `${cleanDomain}.myshopify.com`;
     }
+
+    setStoreDomain(cleanDomain);
+    localStorage.setItem('shopify_connected_shop', cleanDomain);
+
+    const targetUrl = `https://${cleanDomain}/products.json`;
+
+    // Multiple endpoints to bypass CORS & fetch real products
+    const fetchEndpoints = [
+      targetUrl,
+      `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+    ];
+
+    for (const url of fetchEndpoints) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.products && data.products.length > 0) {
+            const realProducts = data.products.map((p, idx) => ({
+              id: `shopify_${p.id || idx}`,
+              title: p.title,
+              category: p.product_type || p.vendor || 'Store Product',
+              collection: p.vendor || 'Main Collection',
+              price: parseFloat(p.variants && p.variants[0] ? p.variants[0].price : '29.99'),
+              compareAtPrice: parseFloat(p.variants && p.variants[0] && p.variants[0].compare_at_price ? p.variants[0].compare_at_price : '39.99'),
+              image: p.images && p.images[0] ? p.images[0].src : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+              description: p.body_html ? p.body_html.replace(/<[^>]*>?/gm, '') : p.title,
+              variants: (p.variants || []).map(v => ({
+                id: `v_${v.id}`,
+                title: v.title,
+                price: parseFloat(v.price || '0'),
+                inventory: v.inventory_quantity || 15
+              }))
+            }));
+
+            setProducts(realProducts);
+            setSelectedProduct(realProducts[0]);
+            setLoadingProducts(false);
+            return true;
+          }
+        }
+      } catch (err) {
+        console.warn(`Attempt failed for ${url}:`, err);
+      }
+    }
+
+    setLoadingProducts(false);
     return false;
   };
 
-  // Sync Store Domain and Fetch Real Products on Load
+  // Sync Store Domain and Fetch Real Products on Initial Load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const shopParam = urlParams.get('shop') || localStorage.getItem('shopify_connected_shop');
-    if (shopParam) {
-      fetchRealStoreProducts(shopParam);
-    }
+    const shopParam = urlParams.get('shop') || localStorage.getItem('shopify_connected_shop') || 'liquid-hub.myshopify.com';
+    fetchRealStoreProducts(shopParam);
   }, []);
 
   // Sync URL Path, Query, and Hash with activeTab state
@@ -152,7 +161,6 @@ export const BundleProvider = ({ children }) => {
       }];
     });
 
-    // Update analytics
     setAnalytics(prev => ({
       ...prev,
       totalRevenue: prev.totalRevenue + (product.price * quantity * (1 - appliedDiscountPercent / 100)),
@@ -160,7 +168,6 @@ export const BundleProvider = ({ children }) => {
     }));
   };
 
-  // Add multiple items to cart (e.g. for FBT / Complete the Look / Bundles)
   const addBundleToCart = (items, bundleDiscountPercent = 0, bundleTypeLabel = 'Bundle Deal') => {
     items.forEach(item => {
       addToCart(item.product, item.quantity || 1, bundleDiscountPercent, { label: bundleTypeLabel, id: `bundle_${Date.now()}` });
@@ -181,10 +188,8 @@ export const BundleProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
-  // Calculate cart totals with dynamic Buy More Save More & Tiered spend rules
   const rawSubtotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
   
-  // Check Buy More Save More Active Tier
   const bmsmCampaign = campaigns.find(c => c.type === 'BUY_MORE_SAVE_MORE' && c.status === 'ACTIVE');
   let cartLevelDiscountPercent = 0;
   if (bmsmCampaign && bmsmCampaign.tiers) {
@@ -195,7 +200,6 @@ export const BundleProvider = ({ children }) => {
     }
   }
 
-  // Calculate Item-level discounts
   const itemDiscountsTotal = cart.reduce((acc, item) => {
     const itemTotal = item.product.price * item.quantity;
     const itemDiscount = itemTotal * (item.discountPercent / 100);
@@ -206,7 +210,6 @@ export const BundleProvider = ({ children }) => {
   const totalSavings = itemDiscountsTotal + cartLevelDiscountTotal;
   const finalTotal = Math.max(0, rawSubtotal - totalSavings);
 
-  // Campaign management
   const toggleCampaignStatus = (id) => {
     setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: c.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } : c));
   };
