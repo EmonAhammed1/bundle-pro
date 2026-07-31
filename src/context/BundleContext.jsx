@@ -102,7 +102,7 @@ export const BundleProvider = ({ children }) => {
   // Sync Store Domain and Fetch Real Products on Initial Load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const shopParam = urlParams.get('shop') || localStorage.getItem('shopify_connected_shop') || 'liquid-hub.myshopify.com';
+    const shopParam = urlParams.get('shop') || localStorage.getItem('shopify_connected_shop') || 'emonahammed.myshopify.com';
     fetchRealStoreProducts(shopParam);
   }, []);
 
@@ -113,33 +113,34 @@ export const BundleProvider = ({ children }) => {
       const hash = window.location.hash.toLowerCase();
       const search = window.location.search.toLowerCase();
 
+      let tab = null;
       if (path.includes('campaign') || hash.includes('campaign') || search.includes('tab=campaign')) {
-        setActiveTab('campaigns');
+        tab = 'campaigns';
       } else if (path.includes('booster') || hash.includes('booster') || search.includes('tab=booster')) {
-        setActiveTab('campaigns');
+        tab = 'campaigns';
       } else if (path.includes('customiz') || hash.includes('customiz') || search.includes('tab=customiz')) {
-        setActiveTab('customizer');
+        tab = 'customizer';
       } else if (path.includes('analytic') || hash.includes('analytic') || search.includes('tab=analytic')) {
-        setActiveTab('analytics');
+        tab = 'analytics';
       } else if (path.includes('export') || path.includes('setting') || hash.includes('setting') || search.includes('tab=setting')) {
-        setActiveTab('exporter');
+        tab = 'exporter';
       } else if (path.includes('simulat') || hash.includes('simulat')) {
-        setActiveTab('simulator');
+        tab = 'simulator';
       } else if (path === '/' || path.includes('welcome') || search.includes('tab=welcome')) {
-        setActiveTab('welcome');
+        tab = 'welcome';
       }
+      
+      if (tab) setActiveTab(tab);
     };
 
     handleUrlSync();
 
     window.addEventListener('popstate', handleUrlSync);
     window.addEventListener('hashchange', handleUrlSync);
-    const interval = setInterval(handleUrlSync, 300);
 
     return () => {
       window.removeEventListener('popstate', handleUrlSync);
       window.removeEventListener('hashchange', handleUrlSync);
-      clearInterval(interval);
     };
   }, []);
 
