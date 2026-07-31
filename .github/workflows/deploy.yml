@@ -1,0 +1,56 @@
+name: EmBundle PRO Automated CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy-vps:
+    name: Auto-Deploy Docker Container to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST || '72.244.153.23' }}
+          username: ${{ secrets.VPS_USER || 'root' }}
+          password: ${{ secrets.VPS_PASSWORD || 'bVgqsYLwOPUNfNsHpO0W' }}
+          port: 22
+          script: |
+            mkdir -p /var/www/embundle-pro
+            cd /var/www/embundle-pro
+            if [ -d ".git" ]; then
+              git pull origin main || git pull origin master
+            else
+              git clone https://github.com/EmonAhammed1/bundle-pro.git .
+            fi
+            docker compose down || true
+            docker compose up -d --build
+
+  deploy-shopify:
+    name: Auto-Deploy Extension to Shopify Partner Dashboard
+    runs-on: ubuntu-latest
+    needs: deploy-vps
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Deploy Shopify App Version
+        env:
+          SHOPIFY_CLI_THEME_TOKEN: ${{ secrets.SHOPIFY_CLI_THEME_TOKEN }}
+        run: |
+          npx shopify app deploy --client-id d05f746d959269be8308b07258f782be --allow-updates --message "GitHub Actions Auto Release"

@@ -8,7 +8,7 @@ export const BundleProvider = ({ children }) => {
   const [products] = useState(MOCK_PRODUCTS);
   const [campaigns, setCampaigns] = useState(INITIAL_CAMPAIGNS);
   const [cart, setCart] = useState([]);
-  const [activeTab, setActiveTab] = useState('campaigns'); // 'campaigns' | 'analytics' | 'customizer' | 'exporter' | 'simulator'
+  const [activeTab, setActiveTab] = useState('welcome'); // 'welcome' | 'campaigns' | 'boosters' | 'analytics' | 'customizer' | 'exporter' | 'simulator'
   const [activeWidgetType, setActiveWidgetType] = useState('BUY_2_GET_10_BUY_3_GET_20');
   const [selectedProduct, setSelectedProduct] = useState(MOCK_PRODUCTS[0]);
   
