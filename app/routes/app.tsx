@@ -7,26 +7,37 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 import { authenticate } from "../shopify.server";
 
+import { MerchantLiveChat } from "../components/MerchantLiveChat";
+
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  return {
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+    shop: session.shop,
+  };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, shop } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <NavMenu>
         <Link to="/app" rel="home">
-          Home
+          Bundles
         </Link>
-        <Link to="/app/additional">Additional page</Link>
+        <Link to="/app/bundles/new">Create Bundle</Link>
+        <Link to="/app/analytics">Analytics</Link>
+        <Link to="/app/settings">Widget Design</Link>
+        <Link to="/app/pricing">Pricing Plans</Link>
+        <Link to="/app/admin-chat">💬 Live Chat Inbox</Link>
+        <Link to="/app/support">Help & Support</Link>
       </NavMenu>
       <Outlet />
+      {shop && <MerchantLiveChat shop={shop} />}
     </AppProvider>
   );
 }

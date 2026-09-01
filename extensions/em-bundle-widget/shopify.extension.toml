@@ -1,0 +1,6 @@
+name = "EM Bundle Widget"
+type = "theme"
+uid = "0ced3381-9459-9703-4fed-789ccd667b1a667dfee5"
+
+[build]
+# Optional build commands

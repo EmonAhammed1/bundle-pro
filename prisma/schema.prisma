@@ -32,3 +32,77 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model Bundle {
+  id            String          @id @default(cuid())
+  shop          String
+  title         String
+  description   String?
+  bundleType    String          @default("FREQUENTLY_BOUGHT_TOGETHER") // FREQUENTLY_BOUGHT_TOGETHER, SIMPLE_BUNDLE, VOLUME_DISCOUNT, MIX_AND_MATCH, BUY_X_GET_Y
+  discountType  String          @default("PERCENTAGE") // PERCENTAGE or FIXED_AMOUNT
+  discountValue Float           @default(15.0)
+  badgeText     String?         @default("Bundle & Save 15%")
+  status        String          @default("ACTIVE") // ACTIVE, DRAFT, ARCHIVED
+  tierRules     String?         // JSON: [{"qty": 2, "discount": 10, "label": "Buy 2 Save 10%"}, ...]
+  bxgyRules     String?         // JSON: {"buyQty": 2, "getQty": 1, "getDiscount": 100}
+  mixMatchMin   Int?            @default(2)
+  mixMatchMax   Int?            @default(6)
+  views         Int             @default(0)
+  purchases     Int             @default(0)
+  revenue       Float           @default(0.0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  products      BundleProduct[]
+}
+
+model BundleProduct {
+  id           String   @id @default(cuid())
+  bundleId     String
+  bundle       Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId    String   // Shopify Product GID
+  variantId    String?  // Shopify Variant GID
+  productTitle String
+  productImage String?
+  price        Float    @default(0.0)
+  quantity     Int      @default(1)
+  isMainItem   Boolean  @default(false)
+  isRewardItem Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model ShopSettings {
+  id              String   @id @default(cuid())
+  shop            String   @unique
+  primaryColor    String   @default("#008060")
+  accentColor     String   @default("#E3F1DF")
+  buttonText      String   @default("Add Bundle to Cart")
+  widgetTitle     String   @default("Frequently Bought Together")
+  showSaveBadge   Boolean  @default(true)
+  borderRadius    Int      @default(8)
+  customCss       String?  @default("")
+  customJs        String?  @default("")
+  enableAnalytics Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  shop        String   @unique
+  planName    String   @default("FREE") // FREE, STARTER, PRO, ELITE
+  status      String   @default("ACTIVE")
+  chargeId    String?
+  bundleLimit Int      @default(3) // Free: 3, Pro: 9999
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  shop      String
+  sender    String   // "MERCHANT" or "ADMIN"
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+

@@ -1,0 +1,55 @@
+{% comment %}
+  EM Bundle - Global App Embed for Automatic Injection
+{% endcomment %}
+
+{% if template contains 'product' %}
+  <div
+    class="em-bundle-container em-bundle-auto-embed"
+    data-product-id="{{ product.id }}"
+    data-shop="{{ shop.permanent_domain }}"
+    style="display: none;"
+  >
+    <div class="em-bundle-loading" id="em-bundle-loader">
+      <div class="em-bundle-spinner"></div>
+      <span>Loading bundle offers...</span>
+    </div>
+
+    <div class="em-bundle-content" id="em-bundle-app" style="display: none;"></div>
+  </div>
+
+  {{ 'bundle_widget.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'bundle_widget.js' | asset_url }}" defer="defer"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // If no section block was placed, automatically insert embed before product form / buy buttons
+      const existingBlock = document.querySelector('.em-bundle-container:not(.em-bundle-auto-embed)');
+      const autoEmbed = document.querySelector('.em-bundle-auto-embed');
+      
+      if (!existingBlock && autoEmbed) {
+        autoEmbed.style.display = 'block';
+        const targetForm = document.querySelector('form[action*="/cart/add"]') || document.querySelector('.product-form') || document.querySelector('.product__info-container');
+        if (targetForm) {
+          targetForm.parentNode.insertBefore(autoEmbed, targetForm);
+        }
+      }
+    });
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "EM Bundle (App Embed)",
+  "target": "head",
+  "stylesheet": "bundle_widget.css",
+  "javascript": "bundle_widget.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_auto_embed",
+      "label": "Auto-inject on product pages",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,66 @@
+{% comment %}
+  EM Bundle - Storefront App Block
+  Compatible with Shopify Online Store 2.0 Themes (Dawn, etc.)
+{% endcomment %}
+
+<div
+  class="em-bundle-container"
+  data-product-id="{{ product.id }}"
+  data-shop="{{ shop.permanent_domain }}"
+  style="
+    --em-primary-color: {{ block.settings.primary_color }};
+    --em-badge-color: {{ block.settings.badge_color }};
+    --em-border-radius: {{ block.settings.border_radius }}px;
+  "
+>
+  <div class="em-bundle-loading" id="em-bundle-loader">
+    <div class="em-bundle-spinner"></div>
+    <span>Loading bundle offers...</span>
+  </div>
+
+  <div class="em-bundle-content" id="em-bundle-app" style="display: none;">
+    <!-- Bundle Container rendered dynamically by bundle_widget.js -->
+  </div>
+</div>
+
+{{ 'bundle_widget.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'bundle_widget.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+{
+  "name": "EM Bundle Offer Box",
+  "target": "section",
+  "stylesheet": "bundle_widget.css",
+  "javascript": "bundle_widget.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Widget Heading",
+      "default": "Frequently Bought Together"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Button & Highlight Color",
+      "default": "#008060"
+    },
+    {
+      "type": "color",
+      "id": "badge_color",
+      "label": "Badge Background Color",
+      "default": "#E3F1DF"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "min": 0,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Corner Rounding",
+      "default": 8
+    }
+  ]
+}
+{% endschema %}

@@ -1,333 +1,388 @@
-import { useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useFetcher } from "@remix-run/react";
+import { json } from "@remix-run/node";
+import { useLoaderData, useFetcher, useNavigate, Link } from "@remix-run/react";
+import { useState, useMemo } from "react";
 import {
   Page,
   Layout,
-  Text,
   Card,
+  Text,
   Button,
-  BlockStack,
-  Box,
-  List,
-  Link,
   InlineStack,
+  BlockStack,
+  Badge,
+  IndexTable,
+  useIndexResourceState,
+  Thumbnail,
+  EmptyState,
+  Banner,
+  TextField,
+  ButtonGroup,
+  Box,
+  Divider,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { PlusIcon, DeleteIcon, EditIcon, ViewIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import {
+  getBundles,
+  getBundleStats,
+  deleteBundle,
+  toggleBundleStatus,
+  createBundle,
+} from "../models/bundle.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
 
-  return null;
+  const bundles = await getBundles(shop);
+  const stats = await getBundleStats(shop);
+
+  return json({ bundles, stats, shop });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "toggle_status") {
+    const id = formData.get("id") as string;
+    await toggleBundleStatus(id, shop);
+    return json({ success: true, message: "Status updated successfully" });
+  }
+
+  if (intent === "delete") {
+    const id = formData.get("id") as string;
+    await deleteBundle(id, shop);
+    return json({ success: true, message: "Bundle deleted successfully" });
+  }
+
+  if (intent === "seed_demo") {
+    // Create a demo sample bundle so the merchant can see how it works instantly
+    await createBundle(shop, {
+      title: "Summer Starter Bundle",
+      description: "Get our best-selling summer items together with a special 20% discount!",
+      discountType: "PERCENTAGE",
+      discountValue: 20,
+      badgeText: "Save 20% Today",
+      status: "ACTIVE",
+      products: [
+        {
+          productId: "gid://shopify/Product/demo-1",
+          productTitle: "Classic Cotton T-Shirt",
+          price: 35.0,
+          quantity: 1,
         },
-      },
-    },
-  );
-  const responseJson = await response.json();
+        {
+          productId: "gid://shopify/Product/demo-2",
+          productTitle: "Canvas Summer Cap",
+          price: 25.0,
+          quantity: 1,
+        },
+      ],
+    });
+    return json({ success: true, message: "Sample bundle created" });
+  }
 
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-
-  const variantResponseJson = await variantResponse.json();
-
-  return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-  };
+  return json({ error: "Invalid intent" }, { status: 400 });
 };
 
-export default function Index() {
-  const fetcher = useFetcher<typeof action>();
-
+export default function Dashboard() {
+  const { bundles, stats } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
+  const navigate = useNavigate();
   const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-  const productId = fetcher.data?.product?.id.replace(
-    "gid://shopify/Product/",
-    "",
-  );
 
-  useEffect(() => {
-    if (productId) {
-      shopify.toast.show("Product created");
-    }
-  }, [productId, shopify]);
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredBundles = useMemo(() => {
+    return bundles.filter((bundle) => {
+      const matchesSearch =
+        bundle.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bundle.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (selectedTab === 1) return matchesSearch && bundle.status === "ACTIVE";
+      if (selectedTab === 2) return matchesSearch && bundle.status === "DRAFT";
+      return matchesSearch;
+    });
+  }, [bundles, searchQuery, selectedTab]);
+
+  const { selectedResources, allResourcesSelected, handleSelectionChange } =
+    useIndexResourceState(filteredBundles);
+
+  const resourceName = {
+    singular: "bundle",
+    plural: "bundles",
+  };
+
+  const rowMarkup = filteredBundles.map((bundle, index) => {
+    const originalPrice = bundle.products.reduce((acc, p) => acc + p.price * p.quantity, 0);
+    const bundlePrice =
+      bundle.discountType === "PERCENTAGE"
+        ? originalPrice * (1 - bundle.discountValue / 100)
+        : Math.max(0, originalPrice - bundle.discountValue);
+
+    return (
+      <IndexTable.Row
+        id={bundle.id}
+        key={bundle.id}
+        selected={selectedResources.includes(bundle.id)}
+        position={index}
+      >
+        <IndexTable.Cell>
+          <BlockStack gap="100">
+            <Text variant="bodyMd" fontWeight="bold" as="span">
+              {bundle.title}
+            </Text>
+            {bundle.description && (
+              <Text variant="bodySm" tone="subdued" as="span">
+                {bundle.description.length > 50
+                  ? `${bundle.description.substring(0, 50)}...`
+                  : bundle.description}
+              </Text>
+            )}
+          </BlockStack>
+        </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <InlineStack gap="200" align="start">
+            <Badge tone="info">{`${bundle.products.length} Products`}</Badge>
+            <Text variant="bodySm" tone="subdued" as="span">
+              {bundle.products.map((p) => p.productTitle).slice(0, 2).join(", ")}
+              {bundle.products.length > 2 && "..."}
+            </Text>
+          </InlineStack>
+        </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <Badge tone="success">
+            {bundle.discountType === "PERCENTAGE"
+              ? `${bundle.discountValue}% OFF`
+              : `$${bundle.discountValue.toFixed(2)} OFF`}
+          </Badge>
+        </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <BlockStack gap="050">
+            <Text variant="bodyMd" fontWeight="semibold" as="span">
+              ${bundlePrice.toFixed(2)}
+            </Text>
+            {originalPrice > 0 && (
+              <Text variant="bodyXs" tone="subdued" textDecorationLine="line-through" as="span">
+                ${originalPrice.toFixed(2)}
+              </Text>
+            )}
+          </BlockStack>
+        </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <Badge tone={bundle.status === "ACTIVE" ? "success" : "subdued"}>
+            {bundle.status}
+          </Badge>
+        </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <Text variant="bodySm" as="span">
+            {`${bundle.views} views • ${bundle.purchases} sales`}
+          </Text>
+        </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <ButtonGroup variant="segmented">
+            <Button
+              size="micro"
+              onClick={() => {
+                fetcher.submit(
+                  { intent: "toggle_status", id: bundle.id },
+                  { method: "POST" }
+                );
+              }}
+            >
+              {bundle.status === "ACTIVE" ? "Pause" : "Activate"}
+            </Button>
+            <Button
+              size="micro"
+              icon={EditIcon}
+              onClick={() => navigate(`/app/bundles/${bundle.id}`)}
+            />
+            <Button
+              size="micro"
+              tone="critical"
+              icon={DeleteIcon}
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete "${bundle.title}"?`)) {
+                  fetcher.submit(
+                    { intent: "delete", id: bundle.id },
+                    { method: "POST" }
+                  );
+                }
+              }}
+            />
+          </ButtonGroup>
+        </IndexTable.Cell>
+      </IndexTable.Row>
+    );
+  });
 
   return (
-    <Page>
-      <TitleBar title="Remix app template">
-        <button variant="primary" onClick={generateProduct}>
-          Generate a product
+    <Page fullWidth>
+      <TitleBar title="EM Bundle Dashboard">
+        <button
+          variant="primary"
+          onClick={() => navigate("/app/bundles/new")}
+        >
+          Create Bundle
         </button>
       </TitleBar>
+
       <BlockStack gap="500">
+        {/* Top Analytics Metrics */}
         <Layout>
-          <Layout.Section>
+          <Layout.Section variant="oneThird">
             <Card>
-              <BlockStack gap="500">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Congrats on creating a new Shopify app 🎉
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h3" tone="subdued">
+                  Total Bundles
+                </Text>
+                <InlineStack align="space-between">
+                  <Text variant="heading2xl" as="p" fontWeight="bold">
+                    {stats.totalBundles}
                   </Text>
-                  <Text variant="bodyMd" as="p">
-                    This embedded app template uses{" "}
-                    <Link
-                      url="https://shopify.dev/docs/apps/tools/app-bridge"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      App Bridge
-                    </Link>{" "}
-                    interface examples like an{" "}
-                    <Link url="/app/additional" removeUnderline>
-                      additional page in the app nav
-                    </Link>
-                    , as well as an{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      Admin GraphQL
-                    </Link>{" "}
-                    mutation demo, to provide a starting point for app
-                    development.
-                  </Text>
-                </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="h3" variant="headingMd">
-                    Get started with products
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
-                  </Text>
-                </BlockStack>
-                <InlineStack gap="300">
-                  <Button loading={isLoading} onClick={generateProduct}>
-                    Generate a product
-                  </Button>
-                  {fetcher.data?.product && (
-                    <Button
-                      url={`shopify:admin/products/${productId}`}
-                      target="_blank"
-                      variant="plain"
-                    >
-                      View product
-                    </Button>
-                  )}
+                  <Badge tone={stats.activeBundles > 0 ? "success" : "subdued"}>
+                    {`${stats.activeBundles} Active`}
+                  </Badge>
                 </InlineStack>
-                {fetcher.data?.product && (
-                  <>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productCreate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.product, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productVariantsBulkUpdate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.variant, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                  </>
-                )}
               </BlockStack>
             </Card>
           </Layout.Section>
+
           <Layout.Section variant="oneThird">
-            <BlockStack gap="500">
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    App template specs
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h3" tone="subdued">
+                  Bundle Views & Impressions
+                </Text>
+                <InlineStack align="space-between">
+                  <Text variant="heading2xl" as="p" fontWeight="bold">
+                    {stats.totalViews}
                   </Text>
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Framework
-                      </Text>
-                      <Link
-                        url="https://remix.run"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Remix
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Database
-                      </Text>
-                      <Link
-                        url="https://www.prisma.io/"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Prisma
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Interface
-                      </Text>
-                      <span>
-                        <Link
-                          url="https://polaris.shopify.com"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          Polaris
-                        </Link>
-                        {", "}
-                        <Link
-                          url="https://shopify.dev/docs/apps/tools/app-bridge"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          App Bridge
-                        </Link>
-                      </span>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        API
-                      </Text>
-                      <Link
-                        url="https://shopify.dev/docs/api/admin-graphql"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphQL API
-                      </Link>
-                    </InlineStack>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Next steps
+                  <Text variant="bodySm" tone="subdued" as="span">
+                    {`${stats.totalPurchases} Orders`}
                   </Text>
-                  <List>
-                    <List.Item>
-                      Build an{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        {" "}
-                        example app
-                      </Link>{" "}
-                      to get started
-                    </List.Item>
-                    <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphiQL
-                      </Link>
-                    </List.Item>
-                  </List>
-                </BlockStack>
-              </Card>
-            </BlockStack>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section variant="oneThird">
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h3" tone="subdued">
+                  Total Bundle Revenue
+                </Text>
+                <InlineStack align="space-between">
+                  <Text variant="heading2xl" as="p" fontWeight="bold">
+                    ${stats.totalRevenue.toFixed(2)}
+                  </Text>
+                  <Badge tone="info">{`${stats.conversionRate}% CVR`}</Badge>
+                </InlineStack>
+              </BlockStack>
+            </Card>
           </Layout.Section>
         </Layout>
+
+        {/* Bundles Table */}
+        <Card padding="0">
+          <Box padding="400">
+            <InlineStack align="space-between" blockAlign="center" gap="400">
+              <InlineStack gap="200">
+                <ButtonGroup variant="segmented">
+                  <Button
+                    pressed={selectedTab === 0}
+                    onClick={() => setSelectedTab(0)}
+                  >
+                    All ({bundles.length})
+                  </Button>
+                  <Button
+                    pressed={selectedTab === 1}
+                    onClick={() => setSelectedTab(1)}
+                  >
+                    Active ({stats.activeBundles})
+                  </Button>
+                  <Button
+                    pressed={selectedTab === 2}
+                    onClick={() => setSelectedTab(2)}
+                  >
+                    Draft ({bundles.length - stats.activeBundles})
+                  </Button>
+                </ButtonGroup>
+              </InlineStack>
+
+              <Box minWidth="260px">
+                <TextField
+                  label="Search bundles"
+                  labelHidden
+                  placeholder="Search by title or description..."
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  autoComplete="off"
+                  clearButton
+                  onClearButtonClick={() => setSearchQuery("")}
+                />
+              </Box>
+            </InlineStack>
+          </Box>
+
+          <Divider />
+
+          {filteredBundles.length === 0 ? (
+            <Box padding="800">
+              <EmptyState
+                heading="Create your first high-converting bundle"
+                action={{
+                  content: "Create Bundle",
+                  onAction: () => navigate("/app/bundles/new"),
+                }}
+                secondaryAction={{
+                  content: "Load Demo Bundle",
+                  onAction: () => {
+                    fetcher.submit({ intent: "seed_demo" }, { method: "POST" });
+                  },
+                }}
+                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+              >
+                <p>
+                  Combine complementary products together with special discounts to increase your store's
+                  Average Order Value (AOV).
+                </p>
+              </EmptyState>
+            </Box>
+          ) : (
+            <IndexTable
+              resourceName={resourceName}
+              itemCount={filteredBundles.length}
+              selectedItemsCount={
+                allResourcesSelected ? "All" : selectedResources.length
+              }
+              onSelectionChange={handleSelectionChange}
+              headings={[
+                { title: "Bundle Name" },
+                { title: "Products" },
+                { title: "Discount" },
+                { title: "Price" },
+                { title: "Status" },
+                { title: "Performance" },
+                { title: "Actions" },
+              ]}
+            >
+              {rowMarkup}
+            </IndexTable>
+          )}
+        </Card>
       </BlockStack>
     </Page>
   );
